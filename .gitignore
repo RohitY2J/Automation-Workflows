@@ -131,3 +131,7 @@ dist
 
 #remove .idea
 .idea/
+
+#Package lock json
+my-app/package-lock.json
+server/package-lock.json
