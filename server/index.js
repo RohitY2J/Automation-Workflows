@@ -1,4 +1,3 @@
-let Connection = require('tedious').Connection;
 let Request = require('tedious').Request
 let TYPES = require('tedious').TYPES;
 let fs = require('fs')
@@ -6,11 +5,14 @@ const express = require('express')
 const app = express()
 const cors = require('cors')
 const config = require('./config')
+const dbconnection = require('./connection/dbconnection')
 
 app.use(cors()) //for cors policy error
 app.use(express.json()) //for catching the values thrown from front-end
 
-let conf = {
+let connection = dbconnection.connect();
+
+/* let conf = {
     server: config.server,  //update me
     authentication: {
         type: 'default',
@@ -35,7 +37,7 @@ connection.on('connect', (err) => {
 
 //opening a port for api
 //=================================== GET REQUEST===================================================
-connection.connect()
+connection.connect()*/
 
 
 app.get('/show', (req, res) => {
