@@ -6,75 +6,14 @@ const app = express()
 const cors = require('cors')
 const config = require('./config')
 const dbconnection = require('./connection/dbconnection')
+const insertionRouter = require('./modules/Insertion/index')
 
 app.use(cors()) //for cors policy error
 app.use(express.json()) //for catching the values thrown from front-end
 
 let connection = dbconnection.connect();
 
-/* let conf = {
-    server: config.server,  //update me
-    authentication: {
-        type: 'default',
-        options: {
-            userName: config.userName, //update
-            password: config.password //update me
-        }
-    },
-    options: {
-        // If you are on Microsoft Azure, you need encryption:
-        encrypt: false,
-        database: config.database  //update me
-    }
-};
-//For connection to database
-let connection = new Connection(conf);
-
-connection.on('connect', (err) => {
-    console.log("Connected");
-});
-
-
-//opening a port for api
-//=================================== GET REQUEST===================================================
-connection.connect()*/
-
-
-app.get('/show', (req, res) => {
-
-    console.log("data")
-    let request = new Request("Select * from SiteData", (err) => {
-        if (err) {
-            console.log(err);
-        }
-
-    })
-    let result = [];
-    request.on('row', function (columns) {
-        let siteIp = {}
-        columns.forEach(function (column,index) {
-
-            if (column.value === null) {
-                console.log('NULL');
-            } else {
-
-                siteIp[column.metadata.colName]=column.value
-            }
-        });
-
-        result.push(siteIp)
-    });
-
-    request.on("requestCompleted", function (rowCount, more) {
-        console.log("Disconnected")
-        res.send(result)
-         /*connection.close();*/
-    });
-    connection.execSql(request)
-
-
-})
-//========================================================================================================
+insertionRouter.insertionRoutes(app, connection);
 
 //==========================================POST REQUEST START==================================================
 //will be triggered when '/create' is used in url like "https://3001/create"
