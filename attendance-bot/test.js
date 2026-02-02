@@ -2,12 +2,11 @@ const { chromium } = require('playwright');
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 
-// Test credentials (replace with your actual values)
 const config = {
   ATTENDANCE_URL: 'https://login.replicon.com/DefaultV2.aspx?companykey=CedarGateTechnologies&msg=&code=PleaseLoginToContinue&init=',
   EMAIL: 'Rohit.kawari',
   PASSWORD: 'HayeHaye@316',
-  SHIFT_VALUE: 'morning'
+  SHIFT_VALUE: 'evening'
 };
 
 const emailConfig = {
@@ -18,31 +17,61 @@ const emailConfig = {
   }
 };
 
+async function sendEmail(subject, body, attachments = []) {
+  try {
+    const transporter = nodemailer.createTransport(emailConfig);
+    
+    const mailOptions = {
+      from: 'rohitkauri13@gmail.com',
+      to: 'rohitkauri13@gmail.com',
+      subject: subject,
+      text: body,
+      attachments: attachments
+    };
+    
+    await transporter.sendMail(mailOptions);
+    console.log('✅ Email sent successfully');
+  } catch (error) {
+    console.error('❌ Email failed:', error.message);
+  }
+}
+
 (async () => {
   const browser = await chromium.launch({ headless: false }); // Set to true for headless
   const page = await browser.newPage();
+  let logMessages = [];
+  let status = 'SUCCESS';
+  let screenshotPath = '';
+  const action = 'out';//hour < 12 ? 'in' : 'out';
+
   
-  // Test both clock in and clock out
-  const testAction = config.SHIFT_VALUE === 'morning' ? 'in' : 'out';
+  // Capture console logs
+  const log = (message) => {
+    console.log(message);
+    logMessages.push(`${new Date().toISOString()}: ${message}`);
+  };
   
   try {
-    console.log('🤖 Starting attendance test...');
+    log('📋 Starting attendance bot...');
+    log(`URL: ${config.ATTENDANCE_URL}`);
+    log(`Email: ${config.EMAIL}`);
+    log(`Shift: ${config.SHIFT_VALUE}`);
+    
+    // Determine action based on time
+    const hour = new Date().getUTCHours();
+    
+    log(`🤖 Starting clock ${action} at ${new Date()}`);
     
     // Navigate to attendance page
     await page.goto(config.ATTENDANCE_URL);
-    console.log('✅ Navigated to attendance portal');
     
     // Login
     await page.fill('input[id="LoginNameTextBox"]', config.EMAIL);
     await page.fill('input[id="PasswordTextBox"]', config.PASSWORD);
-    console.log('✅ Filled login credentials');
-    
     await page.click('input[type="submit"]#LoginButton');
-    console.log('✅ Clicked login button');
     
     // Wait for navigation after login
     await page.waitForNavigation({ waitUntil: 'networkidle' });
-    console.log('✅ Login completed');
     
     // Check for existing punch records today
     const punchTable = await page.$('.userDatePunchItemTable');
@@ -58,130 +87,101 @@ const emailConfig = {
       }
     }
     
-    if (testAction === 'in') {
+    log(`Current punch status - In: ${hasPunchIn}, Out: ${hasPunchOut}`);
+    
+    if (action === 'in') {
       if (hasPunchIn) {
-        console.log('⚠️ Already clocked in today. Skipping clock in.');
-        await page.screenshot({ path: 'already-clocked-in.png' });
-        console.log('📸 Screenshot saved as already-clocked-in.png');
-        return;
+        log('⚠️ Already clocked in today. Skipping clock in.');
+        screenshotPath = 'already-clocked-in.png';
+        await page.screenshot({ path: screenshotPath });
+        status = 'SKIPPED';
+      } else {
+        // Clock In
+        await page.click('input.punchButton.clockIn[value="Clock In"]');
+        
+        // Wait for popup to appear
+        await page.waitForSelector('.contextPopup .authenticPunchDialog');
+        
+        // Click on Activity dropdown using stable attributes
+        await page.click('a.divDropdown[aria-label="Activity Combo box"]');
+        
+        // Wait for dropdown options to load
+        await page.waitForTimeout(1000);
+        
+        // Try to find and click Evening Shift option
+        await page.click('a[href="javascript:;"]:has-text("Evening Shift")');
+        
+        // Click Save button in popup
+        await page.click('input.important[value="Save"][data-id="save"]');
+        
+        log(`✅ Successfully clocked in with Evening Shift at ${new Date()}`);
+        screenshotPath = 'success-clock-in.png';
+        await page.screenshot({ path: screenshotPath });
       }
-      
-      // Clock In
-      await page.click('input.punchButton.clockIn[value="Clock In"]');
-      console.log('✅ Clicked Clock In button');
-      
-      // Wait for popup to appear
-      await page.waitForSelector('.contextPopup .authenticPunchDialog');
-      console.log('✅ Popup appeared');
-      
-      // Click on Activity dropdown using stable attributes
-      await page.click('a.divDropdown[aria-label="Activity Combo box"]');
-      console.log('✅ Clicked Activity dropdown');
-      
-      // Wait for dropdown options to load
-      await page.waitForTimeout(1000);
-      
-      // Try to find and click Evening Shift option
-      await page.click('a[href="javascript:;"]:has-text("Evening Shift")');
-      console.log('✅ Selected Evening Shift');
-      
-      // Click Save button in popup
-      await page.click('input.important[value="Save"][data-id="save"]');
-      console.log('✅ Clicked Save button');
     } else {
       if (!hasPunchIn) {
-        console.log('⚠️ Not clocked in yet. Cannot clock out.');
-        await page.screenshot({ path: 'not-clocked-in.png' });
-        console.log('📸 Screenshot saved as not-clocked-in.png');
-        return;
-      }
-      
-      // Clock Out
-      await page.click('input.punchButton.clockOut[value="Clock Out"]');
-      console.log('✅ Clicked Clock Out button');
-      
-      // Click Save button in popup (if any)
-      try {
-        await page.waitForSelector('input.important[value="Save"][data-id="save"]', { timeout: 3000 });
-        await page.click('input.important[value="Save"][data-id="save"]');
-        console.log('✅ Clicked Save button');
-      } catch (e) {
-        console.log('✅ No save popup for clock out');
+        log('⚠️ Not clocked in yet. Cannot clock out.');
+        screenshotPath = 'not-clocked-in.png';
+        await page.screenshot({ path: screenshotPath });
+        status = 'ERROR';
+      } else if (hasPunchOut) {
+        log('⚠️ Already clocked out today. Skipping clock out.');
+        screenshotPath = 'already-clocked-out.png';
+        await page.screenshot({ path: screenshotPath });
+        status = 'SKIPPED';
+      } else {
+        // Clock Out
+        await page.click('input.punchButton.clockOut[value="Clock Out"]');
+        
+        // Click Save button in popup (if any)
+        try {
+          await page.waitForSelector('input.important[value="Save"][data-id="save"]', { timeout: 3000 });
+          await page.click('input.important[value="Save"][data-id="save"]');
+        } catch (e) {
+          log('No save popup for clock out');
+        }
+        
+        log(`✅ Successfully clocked out at ${new Date()}`);
+        screenshotPath = 'success-clock-out.png';
+        await page.screenshot({ path: screenshotPath });
       }
     }
     
-    console.log('🎉 Test completed successfully!');
-    
-    // Take screenshot after successful completion
-    await page.screenshot({ path: `success-${testAction}-screenshot.png` });
-    console.log(`📸 Success screenshot saved as success-${testAction}-screenshot.png`);
-    
   } catch (error) {
-    console.error('❌ Error:', error.message);
-    
-    // Take screenshot for debugging
-    await page.screenshot({ path: 'error-screenshot.png' });
-    console.log('📸 Screenshot saved as error-screenshot.png');
-    
+    log(`❌ Error: ${error.message}`);
+    status = 'FAILED';
+    screenshotPath = 'error-screenshot.png';
+    await page.screenshot({ path: screenshotPath });
   } finally {
     await browser.close();
     
-    // Create log file
-    const logContent = `Attendance Test Log
-===================
-Action: ${testAction.toUpperCase()}
-Time: ${new Date()}
-Status: Test completed
-
-Detailed execution log would be captured here in production.`;
-    fs.writeFileSync('test-execution.log', logContent);
+    // Save logs to file
+    const logContent = logMessages.join('\n');
+    fs.writeFileSync('attendance.log', logContent);
     
     // Send email notification
-    try {
-      const transporter = nodemailer.createTransport(emailConfig);
-      
-      // Find screenshot and log files
-      let screenshotPath = '';
-      const attachments = [];
-      
-      if (fs.existsSync(`success-${testAction}-screenshot.png`)) {
-        screenshotPath = `success-${testAction}-screenshot.png`;
-        attachments.push({ path: screenshotPath });
-      } else if (fs.existsSync('already-clocked-in.png')) {
-        screenshotPath = 'already-clocked-in.png';
-        attachments.push({ path: screenshotPath });
-      } else if (fs.existsSync('not-clocked-in.png')) {
-        screenshotPath = 'not-clocked-in.png';
-        attachments.push({ path: screenshotPath });
-      } else if (fs.existsSync('error-screenshot.png')) {
-        screenshotPath = 'error-screenshot.png';
-        attachments.push({ path: screenshotPath });
-      }
-      
-      // Add log file
-      if (fs.existsSync('test-execution.log')) {
-        attachments.push({ path: 'test-execution.log' });
-      }
-      
-      const mailOptions = {
-        from: 'rohitkauri13@gmail.com',
-        to: 'rohitkauri13@gmail.com',
-        subject: `Attendance Test - ${testAction.toUpperCase()} Action`,
-        text: `Attendance test completed.
-        
-Action: ${testAction.toUpperCase()}
-Time: ${new Date()}
-Status: Test completed
+    const emailSubject = `Attendance Bot - ${status}`;
+    const emailBody = `Attendance Bot Execution Report
 
-Please check the attached screenshot for details.`,
-        attachments: attachments
-      };
-      
-      await transporter.sendMail(mailOptions);
-      console.log('✅ Email notification sent successfully!');
-      
-    } catch (emailError) {
-      console.error('❌ Email sending failed:', emailError.message);
+Status: ${status}
+Action: Clock ${action}
+Time: ${new Date()}
+
+Logs:
+${logContent}`;
+    
+    const attachments = [
+      { filename: 'attendance.log', path: './attendance.log' }
+    ];
+    
+    if (screenshotPath && fs.existsSync(screenshotPath)) {
+      attachments.push({ filename: screenshotPath, path: `./${screenshotPath}` });
+    }
+    
+    await sendEmail(emailSubject, emailBody, attachments);
+    
+    if (status === 'FAILED') {
+      process.exit(1);
     }
   }
 })();
