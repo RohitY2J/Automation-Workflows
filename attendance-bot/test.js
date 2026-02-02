@@ -126,20 +126,41 @@ const emailConfig = {
   } finally {
     await browser.close();
     
+    // Create log file
+    const logContent = `Attendance Test Log
+===================
+Action: ${testAction.toUpperCase()}
+Time: ${new Date()}
+Status: Test completed
+
+Detailed execution log would be captured here in production.`;
+    fs.writeFileSync('test-execution.log', logContent);
+    
     // Send email notification
     try {
       const transporter = nodemailer.createTransport(emailConfig);
       
-      // Find screenshot file
+      // Find screenshot and log files
       let screenshotPath = '';
+      const attachments = [];
+      
       if (fs.existsSync(`success-${testAction}-screenshot.png`)) {
         screenshotPath = `success-${testAction}-screenshot.png`;
+        attachments.push({ path: screenshotPath });
       } else if (fs.existsSync('already-clocked-in.png')) {
         screenshotPath = 'already-clocked-in.png';
+        attachments.push({ path: screenshotPath });
       } else if (fs.existsSync('not-clocked-in.png')) {
         screenshotPath = 'not-clocked-in.png';
+        attachments.push({ path: screenshotPath });
       } else if (fs.existsSync('error-screenshot.png')) {
         screenshotPath = 'error-screenshot.png';
+        attachments.push({ path: screenshotPath });
+      }
+      
+      // Add log file
+      if (fs.existsSync('test-execution.log')) {
+        attachments.push({ path: 'test-execution.log' });
       }
       
       const mailOptions = {
@@ -153,7 +174,7 @@ Time: ${new Date()}
 Status: Test completed
 
 Please check the attached screenshot for details.`,
-        attachments: screenshotPath ? [{ path: screenshotPath }] : []
+        attachments: attachments
       };
       
       await transporter.sendMail(mailOptions);
