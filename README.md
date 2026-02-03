@@ -92,7 +92,6 @@ This bot automatically handles daily attendance by:
 ### 5. Private Repository Challenge
 - **Issue**: GitHub Actions scheduled workflows don't work in private repos (free accounts)
 - **Solution**: Added `repository_dispatch` trigger for external HTTP requests
-- **Alternative**: Recommended separate public repository for unlimited scheduling
 
 ### 6. External Scheduling Options
 - **cron-job.org**: Free plan with 25 jobs, HTTP requests support
