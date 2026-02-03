@@ -9,11 +9,14 @@ const config = {
   SHIFT_VALUE: 'evening'
 };
 
+// Skip dates - no attendance required
+const skipDates = ['1/1/2026', '12/25/2025', '7/4/2026', '2/3/2026'];
+
 const emailConfig = {
   service: 'gmail',
   auth: {
-    user: 'rohitkauri13@gmail.com',
-    pass: 'bjqi ffbu dzya yjde'
+    user: 'kawarirohit50@gmail.com',
+    pass: 'ubag vzif qsfs lvvt'
   }
 };
 
@@ -22,7 +25,7 @@ async function sendEmail(subject, body, attachments = []) {
     const transporter = nodemailer.createTransport(emailConfig);
     
     const mailOptions = {
-      from: 'rohitkauri13@gmail.com',
+      from: 'kawarirohit50@gmail.com',
       to: 'rohitkauri13@gmail.com',
       subject: subject,
       text: body,
@@ -42,7 +45,7 @@ async function sendEmail(subject, body, attachments = []) {
   let logMessages = [];
   let status = 'SUCCESS';
   let screenshotPath = '';
-  const action = 'out';//hour < 12 ? 'in' : 'out';
+  const action = 'in';//hour < 12 ? 'in' : 'out';
 
   
   // Capture console logs
@@ -52,6 +55,19 @@ async function sendEmail(subject, body, attachments = []) {
   };
   
   try {
+    // Check if today is a skip date
+    const today = new Date();
+    let todayString = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
+    todayString = '2/3/2026';
+
+    if (skipDates.includes(todayString)) {
+      log(`🚫 Skipping attendance for ${todayString} - Holiday/Skip date`);
+      screenshotPath = 'skip-date.png';
+      await page.screenshot({ path: screenshotPath });
+      status = 'SKIPPED';
+      return;
+    }
+    
     log('📋 Starting attendance bot...');
     log(`URL: ${config.ATTENDANCE_URL}`);
     log(`Email: ${config.EMAIL}`);

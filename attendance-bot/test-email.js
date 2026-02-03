@@ -3,8 +3,8 @@ const nodemailer = require('nodemailer');
 const emailConfig = {
   service: 'gmail',
   auth: {
-    user: 'rohitkauri13@gmail.com',
-    pass: 'bjqi ffbu dzya yjde'
+    user: 'kawarirohit50@gmail.com',
+    pass: 'ubag vzif qsfs lvvt'
   }
 };
 
@@ -15,7 +15,7 @@ const emailConfig = {
     const transporter = nodemailer.createTransport(emailConfig);
     
     const mailOptions = {
-      from: 'rohitkauri13@gmail.com',
+      from: 'kawarirohit50@gmail.com',
       to: 'rohitkauri13@gmail.com',
       subject: 'Test Email - Attendance Bot JS Test',
       text: `This is a test email from Node.js script.
