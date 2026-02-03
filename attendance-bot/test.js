@@ -116,6 +116,8 @@ async function sendEmail(subject, body, attachments = []) {
         
         log(`✅ Successfully clocked in with Evening Shift at ${new Date()}`);
         screenshotPath = 'success-clock-in.png';
+        // Wait for page to update before taking screenshot
+        await page.waitForTimeout(3000);
         await page.screenshot({ path: screenshotPath });
       }
     } else {
@@ -143,6 +145,8 @@ async function sendEmail(subject, body, attachments = []) {
         
         log(`✅ Successfully clocked out at ${new Date()}`);
         screenshotPath = 'success-clock-out.png';
+        // Wait for page to update before taking screenshot
+        await page.waitForTimeout(3000);
         await page.screenshot({ path: screenshotPath });
       }
     }
