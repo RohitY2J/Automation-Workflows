@@ -1,11 +1,12 @@
 const { chromium } = require('playwright');
 const nodemailer = require('nodemailer');
 const fs = require('fs');
+require('dotenv').config();
 
 const config = {
   ATTENDANCE_URL: 'https://login.replicon.com/DefaultV2.aspx?companykey=CedarGateTechnologies&msg=&code=PleaseLoginToContinue&init=',
-  EMAIL: 'Rohit.kawari',
-  PASSWORD: 'HayeHaye@316',
+  EMAIL: process.env.REPLICON_EMAIL,
+  PASSWORD: process.env.REPLICON_PASSWORD,
   SHIFT_VALUE: 'evening'
 };
 
@@ -16,7 +17,7 @@ const emailConfig = {
   service: 'gmail',
   auth: {
     user: 'kawarirohit50@gmail.com',
-    pass: 'ubag vzif qsfs lvvt'
+    pass: process.env.GMAIL_PASSWORD
   }
 };
 
