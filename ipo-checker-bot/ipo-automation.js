@@ -51,10 +51,15 @@ async function performLogin(page, account) {
   await page.waitForSelector('.select2-search__field', { visible: true });
   await page.type('.select2-search__field', account.dpId);
   await page.keyboard.press('Enter');
+  await delay(1000);
   await page.type('#username', account.username);
   await delay(500);
   await page.type('#password', account.password);
   await delay(500);
+  await page.waitForFunction(() => {
+    const btn = document.querySelector('button[type="submit"]');
+    return btn && !btn.disabled;
+  });
   await page.click('button[type="submit"]');
   await delay(2000);
 }
@@ -64,6 +69,26 @@ async function getAuthToken(page) {
   const authToken = await page.evaluate(() => window.sessionStorage.getItem('Authorization'));
   if (!authToken) throw new Error('Failed to retrieve authorization token');
   return authToken;
+}
+
+async function loginWithRetry(page, account, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[${account.username}] Login attempt ${attempt}/${maxRetries}`);
+      await performLogin(page, account);
+      console.log(`[${account.username}] Getting auth token...`);
+      const authToken = await getAuthToken(page);
+      console.log(`[${account.username}] Auth token received`);
+      return authToken;
+    } catch (error) {
+      console.log(`[${account.username}] ❌ Attempt ${attempt} failed: ${error.message}`);
+      if (attempt === maxRetries) {
+        throw new Error(`Failed to login after ${maxRetries} attempts`);
+      }
+      console.log(`[${account.username}] Retrying login...`);
+      await delay(3000);
+    }
+  }
 }
 
 async function checkAvailableIPOs(authToken, username) {
@@ -178,11 +203,7 @@ async function processAccount(account, page) {
   try {
     console.log(`[${account.username}] 🔄 Processing...`);
     
-    console.log(`[${account.username}] Logging in...`);
-    await performLogin(page, account);
-    console.log(`[${account.username}] Getting auth token...`);
-    const authToken = await getAuthToken(page);
-    console.log(`[${account.username}] Auth token received`);
+    const authToken = await loginWithRetry(page, account);
 
     const availableIPOs = await checkAvailableIPOs(authToken, account.username);
     const sentIPOs = loadJSON(SENT_IPOS_FILE);
