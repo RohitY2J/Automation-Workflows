@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "ipoId": "HFIL-01352580",
+    "scrip": "HFIL",
+    "company": "Hotel Forest Inn Ltd.",
+    "username": "01352580",
+    "date": "2026-02-06T17:05:47.222Z",
+    "manuallyApplied": true,
+    "statusName": "Unverified",
+    "meroshareRemark": "Block Amount Status - Unverified (Application In-Process at Bank End)"
+  }
+]
