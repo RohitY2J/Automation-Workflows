@@ -60,7 +60,7 @@ async function performLogin(page, account) {
 }
 
 async function getAuthToken(page) {
-  await delay(2000);
+  await delay(5000);
   const authToken = await page.evaluate(() => window.sessionStorage.getItem('Authorization'));
   if (!authToken) throw new Error('Failed to retrieve authorization token');
   return authToken;
@@ -344,7 +344,7 @@ async function main() {
     }
 
     if (!userHasContent) {
-      userSection += '<p style="color: #999;">ℹ️ No actions performed for this account</p>';
+      userSection += '<p style="color: #999;">Successfully Processed.. <br/>ℹ️ No actions performed for this account</p>';
     }
 
     userSection += '</div>';
@@ -352,9 +352,8 @@ async function main() {
     if (userHasContent) hasContent = true;
   }
 
-  if (hasContent) {
-    await sendEmail('📋 IPO Automation Report', emailBody);
-  } else {
+  await sendEmail('📋 IPO Automation Report', emailBody);
+  if (!hasContent) {
     console.log('ℹ️ No actions performed, no email sent');
   }
 

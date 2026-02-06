@@ -10,10 +10,11 @@ Complete IPO automation: checks for new IPOs, auto-applies, tracks status, and s
 - **Email Notifications**: Sends alerts for:
   - New IPOs available
   - Successful applications
-  - Status updates
+  - Status updates (only when changed)
   - Errors
 - **Multiple Accounts**: Supports multiple Meroshare accounts
-- **Duplicate Prevention**: Tracks notified and applied IPOs
+- **Duplicate Prevention**: Tracks notified and applied IPOs per account
+- **Manual Application Detection**: Skips auto-apply if already applied manually
 
 ## Setup
 
@@ -21,7 +22,7 @@ Complete IPO automation: checks for new IPOs, auto-applies, tracks status, and s
 
 Add these secrets in repository settings:
 
-**ACCOUNTS_JSON** - JSON array of accounts (see format below):
+**ACCOUNTS_JSON** - JSON array of accounts:
 ```json
 [
   {
@@ -60,59 +61,143 @@ Add these secrets in repository settings:
 ## How It Works
 
 1. **Login**: Authenticates each account to Meroshare
-2. **Check IPOs**: Fetches available IPOs from ASBA page
+2. **Check IPOs**: Fetches available IPOs from API
 3. **Compare**: Checks against `sent-ipos.json` for new IPOs
-4. **Notify New**: Sends email if new IPOs found
+4. **Detect Manual**: Skips if `action === 'edit'` (already applied manually)
 5. **Auto-Apply**: Applies for IPOs if `autoApply: true`
-6. **Notify Applied**: Sends email confirmation
-7. **Check Status**: Fetches application status for all applied IPOs
-8. **Notify Status**: Sends status update email
-9. **Update Files**: Commits tracking files to prevent duplicates
+6. **Check Status**: Fetches application status for last 2 months
+7. **Track Changes**: Only notifies when status or remark changes
+8. **Send Email**: Single consolidated report for all accounts
+9. **Update Files**: Commits tracking files per account
 
 ## Files
 
-- `ipo-automation.js` - Main unified automation script
-- `sent-ipos.json` - Tracks notified IPOs (auto-updated)
-- `applied-ipos.json` - Tracks applied IPOs with status (auto-updated)
+- `ipo-automation.js` - Main automation script
+- `sent-ipos.json` - Tracks notified IPOs (shared)
+- `applied-ipos-{username}.json` - Tracks applied IPOs per account
 - `accounts-example.json` - Example accounts structure
 - `package.json` - Dependencies
 
-## Email Notifications
+## Email Report Format
 
-### 🚨 New IPO Available
-Sent when new IPOs are detected
+Single email with sections for each account:
 
-### ✅ IPO Applied
-Sent after successfully applying for IPO
+### 🆕 New IPOs Found
+Lists newly detected IPOs
 
-### 📊 IPO Status Update
-Sent with current application statuses
+### ✅ IPOs Applied
+Lists successfully applied IPOs
 
-### ❌ Error
-Sent if any errors occur with screenshot
+### 📊 Status Updates
+Shows status changes with old → new status and remarks
+
+### ⚠️ Errors
+Lists any errors encountered
 
 ## Usage
 
-**Automatic**: Runs daily at 9:45 AM KTM via GitHub Actions
-
-**Manual**: Trigger via GitHub Actions workflow_dispatch
+**GitHub Actions**: Runs on push or manual trigger
 
 **Local Testing**:
 ```bash
 cd ipo-checker-bot
 npm install
-export ACCOUNTS_JSON='[{"dpId":"17300","username":"user","password":"pass","crnNumber":"123","pin":"1234","kitta":"10","autoApply":true}]'
-export EMAIL_USER="your_email@gmail.com"
-export GMAIL_PASSWORD="your_app_password"
-export RECIPIENT_EMAIL="recipient@gmail.com"
+# Create .env file with ACCOUNTS_JSON, EMAIL_USER, GMAIL_PASSWORD, RECIPIENT_EMAIL
 node ipo-automation.js
 ```
 
-## Schedule
+## Schedule Recommendation
 
-- **Daily Check**: `0 4 * * *` (9:45 AM KTM / 4:00 AM UTC)
-- Adjust cron in `.github/workflows/ipo-checker.yml` as needed
+Best times to run:
+- **10:00 AM KTM** - Morning check for new IPOs
+- **4:00 PM KTM** - Final check before close
 
-## Multiple Accounts
+Add to workflow:
+```yaml
+schedule:
+  - cron: '15 4 * * *'   # 10:00 AM KTM
+  - cron: '15 10 * * *'  # 4:00 PM KTM
+```
 
-The bot processes accounts sequentially. Each account gets separate email notifications. Set `autoApply: false` for accounts you want to manually apply.
+## Processing Flow
+
+**Sequential Processing** (Default):
+- Processes accounts one by one
+- Reuses single browser instance
+- Clears session between accounts
+- Slower but more stable
+
+---
+
+## Advanced: Concurrent Processing
+
+For faster execution, process multiple accounts simultaneously.
+
+### Implementation
+
+```javascript
+// Separate browser context per account
+async function processAccount(account) {
+  const browser = await chromium.launch({ 
+    headless: true,
+    args: ['--disable-dev-shm-usage', '--no-sandbox']
+  });
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 800 }
+  });
+  const page = await context.newPage();
+  // ... process account
+  await browser.close();
+}
+
+// Run all accounts concurrently
+const allResults = await Promise.all(
+  accounts.map(account => processAccount(account))
+);
+```
+
+### Benefits
+- 3x faster for 3 accounts
+- Isolated browser contexts
+- No session conflicts
+
+### Considerations
+- Higher memory usage
+- May trigger rate limits
+- Requires stable network
+- Add random delays to avoid detection
+
+### Tips for Concurrent Mode
+
+1. **Random Delays**: Add between actions
+```javascript
+function randomDelay() {
+  return new Promise(r => setTimeout(r, Math.random() * 1500 + 500));
+}
+```
+
+2. **Page Reload**: After networkidle for stability
+```javascript
+await page.goto(url, { waitUntil: 'networkidle' });
+await page.reload({ waitUntil: 'domcontentloaded' });
+```
+
+3. **Event Logging**: Debug concurrent issues
+```javascript
+page.on('load', () => console.log(`[${username}] load fired`));
+page.on('requestfailed', req => console.log(`[${username}] Failed: ${req.url()}`));
+```
+
+4. **Headless Mode**: Test with `headless: false` first
+
+### When to Use Concurrent
+
+✅ Use when:
+- Processing 3+ accounts
+- Time is critical
+- Stable network connection
+
+❌ Avoid when:
+- Experiencing timeouts
+- Limited system resources
+- Testing new features
