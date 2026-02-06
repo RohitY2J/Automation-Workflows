@@ -1,0 +1,50 @@
+name: IPO Automation
+
+on:
+  push:
+    branches:
+      - main
+  repository_dispatch:
+    types: [check-ipo]
+  workflow_dispatch:
+
+jobs:
+  ipo-automation:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd ipo-checker-bot
+          npm install playwright nodemailer axios
+          npx playwright install chromium
+
+      - name: Run IPO automation
+        env:
+          ACCOUNTS_JSON: ${{ secrets.ACCOUNTS_JSON }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+        run: |
+          cd ipo-checker-bot
+          node ipo-automation.js
+
+      - name: Commit updated records
+        run: |
+          cd ipo-checker-bot
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add sent-ipos.json applied-ipos-*.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update IPO records [skip ci]"
+          git push
+        continue-on-error: true

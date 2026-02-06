@@ -1,0 +1,15 @@
+{
+  "name": "ipo-checker-bot",
+  "version": "1.0.0",
+  "description": "Automated IPO checker for Meroshare",
+  "main": "ipo-checker.js",
+  "scripts": {
+    "start": "node ipo-checker.js"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "nodemailer": "^6.9.7",
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1"
+  }
+}
