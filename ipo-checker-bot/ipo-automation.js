@@ -56,18 +56,18 @@ async function performLogin(page, account) {
   await page.type('#password', account.password);
   await delay(500);
   await page.click('button[type="submit"]');
-  await page.waitForNavigation({ waitUntil: 'networkidle' });
+  await delay(2000);
 }
 
 async function getAuthToken(page) {
-  await page.goto(`${CONFIG.frontendURL}/#/asba`, { waitUntil: 'networkidle' });
+  await delay(2000);
   const authToken = await page.evaluate(() => window.sessionStorage.getItem('Authorization'));
   if (!authToken) throw new Error('Failed to retrieve authorization token');
   return authToken;
 }
 
-async function checkAvailableIPOs(authToken) {
-  console.log('Fetching available IPOs...');
+async function checkAvailableIPOs(authToken, username) {
+  console.log(`[${username}] Fetching available IPOs...`);
   const { data } = await axios.post(
     `${CONFIG.baseURL}/companyShare/applicableIssue/`,
     {
@@ -82,7 +82,7 @@ async function checkAvailableIPOs(authToken) {
     },
     { headers: getHeaders(authToken), timeout: 60000 }
   );
-  console.log('IPOs fetched:', data?.object?.length || 0);
+  console.log(`[${username}] IPOs fetched:`, data?.object?.length || 0);
   return data?.object || [];
 }
 
@@ -172,32 +172,34 @@ async function getApplicationDetails(authToken, applicantFormId) {
   return { statusName: data.statusName, meroshareRemark: data.meroshareRemark };
 }
 
-async function processAccount(account) {
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+async function processAccount(account, page) {
   let results = { newIPOs: [], applied: [], statuses: [], errors: [] };
 
   try {
-    console.log(`🔄 Processing: ${account.username}`);
+    console.log(`[${account.username}] 🔄 Processing...`);
     
-    console.log('Logging in...');
+    console.log(`[${account.username}] Logging in...`);
     await performLogin(page, account);
-    console.log('Getting auth token...');
+    console.log(`[${account.username}] Getting auth token...`);
     const authToken = await getAuthToken(page);
-    console.log('Auth token received');
+    console.log(`[${account.username}] Auth token received`);
 
-    const availableIPOs = await checkAvailableIPOs(authToken);
+    const availableIPOs = await checkAvailableIPOs(authToken, account.username);
     const sentIPOs = loadJSON(SENT_IPOS_FILE);
     const appliedIPOs = loadJSON(getAppliedIPOsFile(account.username));
+
+    console.log(`[${account.username}] Processing ${availableIPOs.length} available IPOs...`);
 
     for (const ipo of availableIPOs) {
       const ipoId = `${ipo.scrip}-${account.username}`;
       
       if (!sentIPOs.includes(ipoId)) {
+        console.log(`[${account.username}] New IPO found: ${ipo.scrip} - ${ipo.companyName}`);
         results.newIPOs.push(ipo);
         sentIPOs.push(ipoId);
 
         if (ipo.action === 'edit') {
+          console.log(`[${account.username}] IPO ${ipo.scrip} already applied manually (action=edit)`);
           if (!appliedIPOs.find(a => a.ipoId === ipoId)) {
             appliedIPOs.push({ ipoId, scrip: ipo.scrip, company: ipo.companyName, username: account.username, date: new Date().toISOString(), manuallyApplied: true });
           }
@@ -206,14 +208,19 @@ async function processAccount(account) {
 
         if (account.autoApply !== false) {
           try {
+            console.log(`[${account.username}] Applying for IPO: ${ipo.scrip}...`);
             await applyIPO(page, authToken, ipo, account);
+            console.log(`[${account.username}] ✅ Successfully applied for ${ipo.scrip}`);
             results.applied.push(ipo);
             if (!appliedIPOs.find(a => a.ipoId === ipoId)) {
               appliedIPOs.push({ ipoId, scrip: ipo.scrip, company: ipo.companyName, username: account.username, date: new Date().toISOString() });
             }
           } catch (err) {
+            console.log(`[${account.username}] ❌ Failed to apply for ${ipo.scrip}: ${err.message}`);
             results.errors.push({ ipo: ipo.scrip, error: err.message });
           }
+        } else {
+          console.log(`[${account.username}] Auto-apply disabled, skipping ${ipo.scrip}`);
         }
       }
     }
@@ -221,7 +228,10 @@ async function processAccount(account) {
     saveJSON(SENT_IPOS_FILE, sentIPOs);
     saveJSON(getAppliedIPOsFile(account.username), appliedIPOs);
 
+    console.log(`[${account.username}] Checking application statuses...`);
     const applications = await getApplicationStatus(authToken);
+    console.log(`[${account.username}] Found ${applications.length} applications`);
+    
     for (const app of applications) {
       const details = await getApplicationDetails(authToken, app.applicantFormId);
       
@@ -231,6 +241,7 @@ async function processAccount(account) {
         const oldRemark = applied.meroshareRemark;
         
         if (oldStatus !== details.statusName || oldRemark !== details.meroshareRemark) {
+          console.log(`[${account.username}] Status changed for ${app.scrip}: ${oldStatus || 'New'} → ${details.statusName}`);
           results.statuses.push({ scrip: app.scrip, oldStatus, newStatus: details.statusName, remark: details.meroshareRemark });
         }
         
@@ -239,13 +250,12 @@ async function processAccount(account) {
       }
     }
     saveJSON(getAppliedIPOsFile(account.username), appliedIPOs);
+    console.log(`[${account.username}] ✅ Processing completed`);
 
   } catch (error) {
     results.errors.push({ general: error.message });
     const screenshot = path.join(__dirname, `error-${account.username}.png`);
     await page.screenshot({ path: screenshot }).catch(() => {});
-  } finally {
-    await browser.close();
   }
 
   return results;
@@ -276,9 +286,17 @@ async function main() {
   const accounts = JSON.parse(accountsJSON);
   let allResults = [];
 
-  for (const account of accounts) {
-    const results = await processAccount(account);
-    allResults.push({ username: account.username, ...results });
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const account of accounts) {
+      const page = await browser.newPage();
+      const results = await processAccount(account, page);
+      allResults.push({ username: account.username, ...results });
+      
+      await delay(5000);
+    }
+  } finally {
+    await browser.close();
   }
 
   let emailBody = '<h2>📋 IPO Automation Report</h2>';
