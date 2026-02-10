@@ -98,6 +98,17 @@ This bot automatically handles daily attendance by:
 - **Public GitHub Repo**: Unlimited free scheduled workflows
 - **HTTP Trigger**: POST requests to trigger attendance bot
 
+### 7. Automatic Retry Mechanism
+- **Retry Workflow**: Monitors main attendance workflow and retries on failure
+- **Trigger**: Automatically runs when "Daily Attendance Bot" workflow completes
+- **On Failure**: 
+  - Waits 60 seconds before retry
+  - Checks recent failure count (max 3 retries)
+  - Triggers workflow again if under retry limit
+  - Stops retrying after max attempts reached
+- **On Success**: Logs confirmation message that monitoring is active
+- **Smart Logic**: Prevents infinite retry loops with failure count tracking
+
 ## Files Structure
 
 ```
@@ -105,7 +116,8 @@ This bot automatically handles daily attendance by:
 │   ├── test.js              # Main Playwright automation script
 │   └── test-email.js        # Standalone email testing
 ├── .github/workflows/
-│   └── attendance.yml       # GitHub Actions workflow
+│   ├── attendance.yml       # Main attendance workflow
+│   └── attendance-retry.yml # Automatic retry on failure
 └── README.md               # This file
 ```
 
@@ -116,6 +128,7 @@ This bot automatically handles daily attendance by:
 - **Email Reports**: Always sends notifications regardless of success/failure
 - **Duplicate Prevention**: Smart checking to avoid double entries
 - **External Triggers**: Support for HTTP-based scheduling workarounds
+- **Automatic Retry**: Intelligent retry mechanism with max 3 attempts on failure
 
 ## Configuration
 

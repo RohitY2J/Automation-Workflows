@@ -1,9 +1,9 @@
 name: IPO Automation
 
 on:
-  push:
-    branches:
-      - main
+  #push:
+  #  branches:
+  #    - main
   repository_dispatch:
     types: [check-ipo]
   workflow_dispatch:
