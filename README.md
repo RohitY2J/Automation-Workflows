@@ -1,161 +1,96 @@
-# Automated Attendance Bot
+# HostFileUpdate
 
-An automated attendance system that uses Playwright to clock in/out on Replicon portal with scheduled execution via GitHub Actions.
+Automation workflows for attendance tracking and IPO monitoring using GitHub Actions.
 
-## Project Overview
+## Available Workflows
 
-This bot automatically handles daily attendance by:
-- **Clock In**: 1:00 PM KTM (Evening Shift)
-- **Clock Out**: 11:05 PM KTM
-- **Email Notifications**: Success/failure reports with screenshots and logs
-- **Duplicate Prevention**: Skips if already clocked in/out
+### 1. Daily Attendance Bot
+**File:** `.github/workflows/attendance.yml`
 
-## Flow Diagram
+Automated attendance system for Replicon portal with scheduled clock in/out.
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   GitHub Actions│    │  External Cron  │    │  Manual Trigger │
-│   (Scheduled)   │    │   (cron-job.org)│    │ (workflow_dispatch)│
-└─────────┬───────┘    └─────────┬───────┘    └─────────┬───────┘
-          │                      │                      │
-          └──────────────────────┼──────────────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │    Attendance Bot       │
-                    │    (test.js)           │
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │   Login to Replicon     │
-                    │   Portal               │
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │  Check Current Time     │
-                    │  (UTC < 12 = In)       │
-                    │  (UTC >= 12 = Out)     │
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │ Check Existing Punches  │
-                    │ (.punchBadgeIn/Out)    │
-                    └────────────┬────────────┘
-                                 │
-              ┌──────────────────┼──────────────────┐
-              │                  │                  │
-    ┌─────────▼─────────┐ ┌──────▼──────┐ ┌─────────▼─────────┐
-    │   Clock In        │ │   Clock Out │ │      Skip         │
-    │ (Evening Shift)   │ │             │ │  (Already Done)   │
-    └─────────┬─────────┘ └──────┬──────┘ └─────────┬─────────┘
-              │                  │                  │
-              └──────────────────┼──────────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │   Take Screenshot       │
-                    │   Generate Logs        │
-                    └────────────┬────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │   Send Email Report     │
-                    │ (Gmail SMTP + Attach)   │
-                    └─────────────────────────┘
-```
+- **Triggers:** Manual (`workflow_dispatch`), External HTTP (`repository_dispatch`)
+- **Schedule:** Clock In at 1:00 PM KTM, Clock Out at 11:05 PM KTM (currently disabled)
+- **Features:**
+  - Automatic clock in/out with Evening Shift selection
+  - Duplicate prevention (skips if already clocked in/out)
+  - Holiday/skip date support
+  - Email notifications with screenshots
+  - Time-based action detection (UTC < 12 = In, >= 12 = Out)
 
-## Project Flow
+**Usage:**
+- Manual: GitHub Actions → Run workflow
+- External: POST to `https://api.github.com/repos/RohitY2J/HostFileUpdate/dispatches` with `{"event_type":"attendance-trigger"}`
 
-### 1. Initial Setup
-- Created Playwright automation script for Replicon portal
-- Implemented login functionality with credentials
-- Added evening shift selection for clock-in
+---
 
-### 2. GitHub Actions Integration
-- Developed scheduled workflow for automatic execution
-- Set up cron jobs for KTM timezone (UTC+5:45)
-- Added manual trigger and repository_dispatch support
+### 2. Attendance Retry Monitor
+**File:** `.github/workflows/attendance-retry.yml`
 
-### 3. Duplicate Prevention Logic
-- **Clock In**: Checks existing punch records, skips if already clocked in
-- **Clock Out**: Verifies clock-in status and existing clock-out, skips if already done
-- **Status Tracking**: Uses punch table HTML structure (`.punchBadgeIn/.punchBadgeOut`)
+Automatically retries the Daily Attendance Bot workflow if it fails.
 
-### 4. Email Notification System
-- Integrated nodemailer for Gmail SMTP
-- Sends reports with screenshots and logs attached
-- Different screenshots for each scenario:
-  - `already-clocked-in.png` - Skip clock in
-  - `already-clocked-out.png` - Skip clock out
-  - `not-clocked-in.png` - Cannot clock out
-  - `success-clock-in.png` - Successful clock in
-  - `success-clock-out.png` - Successful clock out
-  - `error-screenshot.png` - Any errors
+- **Triggers:** Automatically when "Daily Attendance Bot" workflow completes
+- **Features:**
+  - Monitors main attendance workflow completion
+  - Retries up to 2 times on failure
+  - 60 second delay between retries
+  - Smart failure count tracking to prevent infinite loops
 
-### 5. Private Repository Challenge
-- **Issue**: GitHub Actions scheduled workflows don't work in private repos (free accounts)
-- **Solution**: Added `repository_dispatch` trigger for external HTTP requests
+**How it works:**
+- Runs automatically after attendance workflow fails
+- Checks recent failure count
+- Triggers workflow again if under retry limit
+- Stops after max attempts reached
 
-### 6. External Scheduling Options
-- **cron-job.org**: Free plan with 25 jobs, HTTP requests support
-- **Public GitHub Repo**: Unlimited free scheduled workflows
-- **HTTP Trigger**: POST requests to trigger attendance bot
+---
 
-### 7. Automatic Retry Mechanism
-- **Retry Workflow**: Monitors main attendance workflow and retries on failure
-- **Trigger**: Automatically runs when "Daily Attendance Bot" workflow completes
-- **On Failure**: 
-  - Waits 60 seconds before retry
-  - Checks recent failure count (max 3 retries)
-  - Triggers workflow again if under retry limit
-  - Stops retrying after max attempts reached
-- **On Success**: Logs confirmation message that monitoring is active
-- **Smart Logic**: Prevents infinite retry loops with failure count tracking
+### 3. IPO Automation
+**File:** `.github/workflows/ipo-checker.yml`
 
-## Files Structure
+Automated IPO checking and application system.
 
-```
-├── attendance-bot/
-│   ├── test.js              # Main Playwright automation script
-│   └── test-email.js        # Standalone email testing
-├── .github/workflows/
-│   ├── attendance.yml       # Main attendance workflow
-│   └── attendance-retry.yml # Automatic retry on failure
-└── README.md               # This file
-```
+- **Triggers:** Manual (`workflow_dispatch`), External HTTP (`repository_dispatch`)
+- **Features:**
+  - Checks for new IPO listings
+  - Automated IPO application process
+  - Email notifications for new IPOs
+  - Tracks sent and applied IPOs in JSON files
+  - Auto-commits updated records
 
-## Key Features
+**Usage:**
+- Manual: GitHub Actions → Run workflow
+- External: POST with `{"event_type":"check-ipo"}`
 
-- **Time-based Actions**: Automatically determines clock in/out based on UTC time
-- **Robust Error Handling**: Screenshots and logs for all scenarios
-- **Email Reports**: Always sends notifications regardless of success/failure
-- **Duplicate Prevention**: Smart checking to avoid double entries
-- **External Triggers**: Support for HTTP-based scheduling workarounds
-- **Automatic Retry**: Intelligent retry mechanism with max 3 attempts on failure
+---
 
-## Configuration
+## Required Secrets
 
-### Replicon Portal
-- URL: `https://login.replicon.com/DefaultV2.aspx?companykey=CedarGateTechnologies`
-- Username: `Rohit.kawari`
-- Shift: Evening Shift selection
+Configure these in GitHub Settings → Secrets:
 
-### Email Settings
-- Gmail SMTP with app password
-- Sends to: `rohitkauri13@gmail.com`
-- Attachments: Screenshots and logs
+### Attendance Bot
+- `REPLICON_EMAIL` - Replicon login email
+- `REPLICON_PASSWORD` - Replicon password
+- `GMAIL_PASSWORD` - Gmail app password for notifications
 
-### Schedule
-- **Clock In**: `15 7 * * 1-5` (1:00 PM KTM, weekdays)
-- **Clock Out**: `20 17 * * 1-5` (11:05 PM KTM, weekdays)
+### IPO Automation
+- `ACCOUNTS_JSON` - JSON array of account credentials
+- `EMAIL_USER` - Email sender address
+- `GMAIL_PASSWORD` - Gmail app password
+- `RECIPIENT_EMAIL` - Email recipient for notifications
 
-## Usage
+---
 
-1. **Automatic**: Runs on schedule via GitHub Actions
-2. **Manual**: Use workflow_dispatch in GitHub Actions
-3. **External**: HTTP POST to repository_dispatch endpoint
-4. **Local**: Run `node test.js` in attendance-bot directory
+## Documentation
 
-## Status Codes
+- **Attendance Bot Details:** [README-attendance-bot.md](README-attendance-bot.md)
+- **Retry Script:** [trigger-with-retry.sh](trigger-with-retry.sh)
 
-- **SUCCESS**: Operation completed successfully
-- **SKIPPED**: Already clocked in/out, no action needed
-- **ERROR**: Cannot perform action (e.g., not clocked in for clock out)
-- **FAILED**: Technical error during execution
+---
+
+## External Scheduling
+
+For private repositories, use external cron services:
+- **cron-job.org** - Free HTTP-based scheduling
+- **Public GitHub Repo** - Unlimited scheduled workflows
+
+See [README-attendance-bot.md](README-attendance-bot.md) for detailed setup instructions.
