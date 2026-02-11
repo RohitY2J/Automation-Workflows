@@ -8,5 +8,14 @@
     "manuallyApplied": true,
     "statusName": "Verified",
     "meroshareRemark": "Block Amount Status - Amount Blocked"
+  },
+  {
+    "ipoId": "RIDGE-03807561",
+    "scrip": "RIDGE",
+    "company": "Ridge Line Energy Ltd.",
+    "username": "03807561",
+    "date": "2026-02-11T09:17:58.835Z",
+    "statusName": "Unverified",
+    "meroshareRemark": "Block Amount Status - Unverified (Application In-Process at Bank End)"
   }
 ]
