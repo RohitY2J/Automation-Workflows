@@ -1,0 +1,217 @@
+name: Daily Attendance Bot
+on:
+  #schedule:
+  #  - cron: '15 7 * * 1-5'   # 1:00 PM KTM (7:15 UTC) - Clock In
+  #  - cron: '20 17 * * 1-5'   # 11:05 PM KTM (17:20 UTC) - Clock Out
+  workflow_dispatch:         # Manual trigger for testing
+  repository_dispatch:       # External HTTP trigger
+    types: [attendance-trigger]
+
+jobs:
+  punch-attendance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+                
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Install Playwright
+        run: |
+          npm init -y
+          npm install playwright nodemailer
+          npx playwright install chromium
+          
+      - name: Run Attendance Bot
+        env:
+          REPLICON_EMAIL: ${{ secrets.REPLICON_EMAIL }}
+          REPLICON_PASSWORD: ${{ secrets.REPLICON_PASSWORD }}
+          GMAIL_PASSWORD: ${{ secrets.GMAIL_PASSWORD }}
+        run: |
+          cat > attendance.js << 'EOF'
+          const { chromium } = require('playwright');
+          
+          const config = {
+            ATTENDANCE_URL: 'https://login.replicon.com/DefaultV2.aspx?companykey=CedarGateTechnologies&msg=&code=PleaseLoginToContinue&init=',
+            EMAIL: process.env.REPLICON_EMAIL,
+            PASSWORD: process.env.REPLICON_PASSWORD,
+            SHIFT_VALUE: 'evening'
+          };
+          
+          // Skip dates - no attendance required
+          const skipDates = ['1/1/2026', '2/15/2026', '3/2/2026',
+            '4/14/2026', '5/1/2026', '12/25/2025'];
+          
+          (async () => {
+            const browser = await chromium.launch();
+            const page = await browser.newPage();
+            
+            try {
+              // Check if today is a skip date
+              const today = new Date();
+              const todayString = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;
+              
+              if (skipDates.includes(todayString)) {
+                console.log(`🚫 Skipping attendance for ${todayString} - Holiday/Skip date`);
+                await page.screenshot({ path: 'skip-date.png' });
+                console.log('Screenshot saved as skip-date.png');
+                return;
+              }
+              console.log('📋 Configuration:');
+              console.log('URL:', config.ATTENDANCE_URL);
+              console.log('Email: [HIDDEN]');
+              console.log('Password: [HIDDEN]');
+              console.log('Shift:', config.SHIFT_VALUE);
+              
+              // Determine action based on time
+              const hour = new Date().getUTCHours();
+              const action = hour < 12 ? 'in' : 'out';
+              
+              console.log(`🤖 Starting clock ${action} at ${new Date()}`);
+              
+              // Navigate to attendance page
+              await page.goto(config.ATTENDANCE_URL);
+              
+              // Login
+              await page.fill('input[id="LoginNameTextBox"]', config.EMAIL);
+              await page.fill('input[id="PasswordTextBox"]', config.PASSWORD);
+              await page.click('input[type="submit"]#LoginButton');
+              
+              // Wait for navigation after login
+              await page.waitForNavigation({ waitUntil: 'networkidle' });
+              
+              // Check for existing punch records today
+              const punchTable = await page.$('.userDatePunchItemTable');
+              let hasPunchIn = false;
+              let hasPunchOut = false;
+              
+              if (punchTable) {
+                const punchBadges = await page.$$('.punchBadgeIn, .punchBadgeOut');
+                for (const badge of punchBadges) {
+                  const badgeText = await badge.textContent();
+                  if (badgeText === 'In') hasPunchIn = true;
+                  if (badgeText === 'Out') hasPunchOut = true;
+                }
+              }
+              
+              if (action === 'in') {
+                if (hasPunchIn) {
+                  console.log('⚠️ Already clocked in today. Skipping clock in.');
+                  await page.screenshot({ path: 'already-clocked-in.png' });
+                  console.log('Screenshot saved as already-clocked-in.png');
+                  return;
+                }
+                
+                // Clock In
+                await page.click('input.punchButton.clockIn[value="Clock In"]');
+                
+                // Wait for popup to appear
+                await page.waitForSelector('.contextPopup .authenticPunchDialog');
+                
+                // Click on Activity dropdown using stable attributes
+                await page.click('a.divDropdown[aria-label="Activity Combo box"]');
+                
+                // Wait for dropdown options to load
+                await page.waitForTimeout(1000);
+                
+                // Try to find and click Evening Shift option
+                await page.click('a[href="javascript:;"]:has-text("Evening Shift")');
+                
+                
+                // Click Save button in popup
+                await page.click('input.important[value="Save"][data-id="save"]');
+                
+                console.log(`✅ Successfully clocked in with Evening Shift`);
+              } else {
+                if (!hasPunchIn) {
+                  console.log('⚠️ Not clocked in yet. Cannot clock out.');
+                  await page.screenshot({ path: 'not-clocked-in.png' });
+                  console.log('Screenshot saved as not-clocked-in.png');
+                  return;
+                }
+                
+                if (hasPunchOut) {
+                  console.log('⚠️ Already clocked out today. Skipping clock out.');
+                  await page.screenshot({ path: 'already-clocked-out.png' });
+                  console.log('Screenshot saved as already-clocked-out.png');
+                  return;
+                }
+                
+                // Clock Out
+                await page.click('input.punchButton.clockOut[value="Clock Out"]');
+                
+                // Click Save button in popup (if any)
+                try {
+                  await page.waitForSelector('input.important[value="Save"][data-id="save"]', { timeout: 3000 });
+                  await page.click('input.important[value="Save"][data-id="save"]');
+                } catch (e) {
+                  console.log('No save popup for clock out');
+                }
+                
+                console.log(`✅ Successfully clocked out`);
+              }
+              
+              // Wait for page to update before taking screenshot
+              await page.waitForTimeout(3000);
+              
+              // Take screenshot after successful completion
+              await page.screenshot({ path: `success-${action}-screenshot.png` });
+              console.log(`Screenshot saved as success-${action}-screenshot.png`);
+              
+            } catch (error) {
+              console.error(`❌ Error: ${error.message}`);
+              // Take error screenshot
+              await page.screenshot({ path: 'error-screenshot.png' });
+              console.log('Error screenshot saved as error-screenshot.png');
+              process.exit(1);
+            } finally {
+              await browser.close();
+            }
+          })();
+          EOF
+          
+          node attendance.js > attendance.log 2>&1
+          
+          # Set action based on log content
+          if grep -q "Skipping attendance.*Holiday/Skip date" attendance.log; then
+            echo "ACTION=skipped" >> $GITHUB_ENV
+          elif grep -q "Successfully clocked in" attendance.log; then
+            echo "ACTION=success-in" >> $GITHUB_ENV
+          elif grep -q "Successfully clocked out" attendance.log; then
+            echo "ACTION=success-out" >> $GITHUB_ENV
+          elif grep -q "Already clocked in" attendance.log; then
+            echo "ACTION=already-in" >> $GITHUB_ENV
+          elif grep -q "Already clocked out" attendance.log; then
+            echo "ACTION=already-out" >> $GITHUB_ENV
+          else
+            echo "ACTION=unknown" >> $GITHUB_ENV
+          fi
+          
+      - name: Get Current Date
+        run: echo "CURRENT_DATE=$(date +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_ENV
+        
+      - name: Send Email Notification
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: kawarirohit50@gmail.com
+          password: ${{ secrets.GMAIL_PASSWORD }}
+
+          subject: "Attendance Bot - ${{ job.status == 'success' && 'Success' || 'Failed' }}"
+          body: |
+            Attendance Bot Execution Report
+            
+            Status: ${{ job.status == 'success' && 'SUCCESS' || 'FAILED' }}
+            Action: ${{ env.ACTION || 'unknown' }}
+            Time: ${{ github.event.schedule && (contains(github.event.schedule, '15 7') && 'Clock In (1:00 PM KTM)' || 'Clock Out (11:05 PM KTM)') || 'Manual Trigger' }}
+            Date: ${{ env.CURRENT_DATE }}
+            
+            Please check the attached screenshot for details.
+          to: rohitkauri13@gmail.com
+          from: kawarirohit50@gmail.com
+          attachments: "*.png,*.log"
