@@ -6,8 +6,8 @@
     "username": "03807561",
     "date": "2026-02-06T17:06:10.512Z",
     "manuallyApplied": true,
-    "statusName": "Verified",
-    "meroshareRemark": "Block Amount Status - Amount Blocked"
+    "statusName": "Not Alloted",
+    "meroshareRemark": "Block Amount Status - Amount Released"
   },
   {
     "ipoId": "RIDGE-03807561",
@@ -17,5 +17,14 @@
     "date": "2026-02-11T09:17:58.835Z",
     "statusName": "Verified",
     "meroshareRemark": "Block Amount Status - Amount Blocked"
+  },
+  {
+    "ipoId": "KHUDI-03807561",
+    "scrip": "KHUDI",
+    "company": "Super Khudi Hydropower  Limited",
+    "username": "03807561",
+    "date": "2026-02-17T09:17:47.084Z",
+    "statusName": "Unverified",
+    "meroshareRemark": "Block Amount Status - Unverified (Application In-Process at Bank End)"
   }
 ]
