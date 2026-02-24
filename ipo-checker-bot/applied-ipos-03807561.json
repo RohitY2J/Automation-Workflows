@@ -33,5 +33,14 @@
     "company": "8% ICFC Finance Limited Debenture 2089",
     "username": "03807561",
     "date": "2026-02-23T09:17:47.198Z"
+  },
+  {
+    "ipoId": "PCIL-03807561",
+    "scrip": "PCIL",
+    "company": "Palpa Cement Industries Limited",
+    "username": "03807561",
+    "date": "2026-02-24T09:17:54.478Z",
+    "statusName": "Unverified",
+    "meroshareRemark": "Block Amount Status - Unverified (Application In-Process at Bank End)"
   }
 ]
