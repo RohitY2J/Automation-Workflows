@@ -42,5 +42,14 @@
     "date": "2026-02-24T09:16:42.853Z",
     "statusName": "Verified",
     "meroshareRemark": "Block Amount Status - Amount Blocked"
+  },
+  {
+    "ipoId": "SHPDL-01352580",
+    "scrip": "SHPDL",
+    "company": "Shikhar Power Development Limited",
+    "username": "01352580",
+    "date": "2026-03-01T09:16:36.205Z",
+    "statusName": "Unverified",
+    "meroshareRemark": "Block Amount Status - Unverified (Application In-Process at Bank End)"
   }
 ]
