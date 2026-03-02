@@ -16,7 +16,7 @@
     "username": "03849722",
     "date": "2026-02-11T09:19:07.181Z",
     "statusName": "Not Alloted",
-    "meroshareRemark": "Block Amount Status - Generated (Amount Release In-Process at Bank End)"
+    "meroshareRemark": "Block Amount Status - Amount Released"
   },
   {
     "ipoId": "KHUDI-03849722",
@@ -49,7 +49,7 @@
     "company": "Shikhar Power Development Limited",
     "username": "03849722",
     "date": "2026-03-01T09:19:00.331Z",
-    "statusName": "Unverified",
-    "meroshareRemark": "Block Amount Status - Unverified (Application In-Process at Bank End)"
+    "statusName": "Verified",
+    "meroshareRemark": "Block Amount Status - Amount Blocked"
   }
 ]
