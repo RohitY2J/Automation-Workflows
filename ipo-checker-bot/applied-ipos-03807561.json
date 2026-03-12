@@ -51,5 +51,12 @@
     "date": "2026-03-01T09:17:49.164Z",
     "statusName": "Verified",
     "meroshareRemark": "Block Amount Status - Amount Blocked"
+  },
+  {
+    "ipoId": "GSYM-03807561",
+    "scrip": "GSYM",
+    "company": "Garima Subarna Yojana",
+    "username": "03807561",
+    "date": "2026-03-12T09:17:52.951Z"
   }
 ]
