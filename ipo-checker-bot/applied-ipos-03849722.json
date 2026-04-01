@@ -6,8 +6,8 @@
     "username": "03849722",
     "date": "2026-02-06T17:09:30.104Z",
     "manuallyApplied": true,
-    "statusName": "Verified",
-    "meroshareRemark": "Block Amount Status - Amount Blocked"
+    "statusName": "Alloted",
+    "meroshareRemark": "Block Amount Status - Amount Released"
   },
   {
     "ipoId": "RIDGE-03849722",
@@ -15,7 +15,48 @@
     "company": "Ridge Line Energy Ltd.",
     "username": "03849722",
     "date": "2026-02-11T09:19:07.181Z",
-    "statusName": "Verified",
-    "meroshareRemark": "Block Amount Status - Amount Blocked"
+    "statusName": "Not Alloted",
+    "meroshareRemark": "Block Amount Status - Amount Released"
+  },
+  {
+    "ipoId": "KHUDI-03849722",
+    "scrip": "KHUDI",
+    "company": "Super Khudi Hydropower  Limited",
+    "username": "03849722",
+    "date": "2026-02-17T09:18:59.012Z",
+    "statusName": "Not Alloted",
+    "meroshareRemark": "Block Amount Status - Amount Released"
+  },
+  {
+    "ipoId": "ICFCD89-03849722",
+    "scrip": "ICFCD89",
+    "company": "8% ICFC Finance Limited Debenture 2089",
+    "username": "03849722",
+    "date": "2026-02-23T09:18:57.329Z"
+  },
+  {
+    "ipoId": "PCIL-03849722",
+    "scrip": "PCIL",
+    "company": "Palpa Cement Industries Limited",
+    "username": "03849722",
+    "date": "2026-02-24T09:19:05.728Z",
+    "statusName": "Alloted",
+    "meroshareRemark": "Block Amount Status - Amount Released"
+  },
+  {
+    "ipoId": "SHPDL-03849722",
+    "scrip": "SHPDL",
+    "company": "Shikhar Power Development Limited",
+    "username": "03849722",
+    "date": "2026-03-01T09:19:00.331Z",
+    "statusName": "Not Alloted",
+    "meroshareRemark": "Block Amount Status - Amount Released"
+  },
+  {
+    "ipoId": "GSYM-03849722",
+    "scrip": "GSYM",
+    "company": "Garima Subarna Yojana",
+    "username": "03849722",
+    "date": "2026-03-12T09:19:03.066Z"
   }
 ]
