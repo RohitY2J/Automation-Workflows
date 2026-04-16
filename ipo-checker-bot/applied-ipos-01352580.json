@@ -76,5 +76,14 @@
     "date": "2026-04-09T09:16:44.570Z",
     "statusName": "Verified",
     "meroshareRemark": "Block Amount Status - Amount Blocked"
+  },
+  {
+    "ipoId": "SOPAN-01352580",
+    "scrip": "SOPAN",
+    "company": "Sopan Pharmaceuticals  Limited",
+    "username": "01352580",
+    "date": "2026-04-16T09:16:46.082Z",
+    "statusName": "Unverified",
+    "meroshareRemark": "Block Amount Status - Unverified (Application In-Process at Bank End)"
   }
 ]
